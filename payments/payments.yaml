@@ -1,0 +1,320 @@
+openapi: 3.0.0
+info:
+  title: Payment API (work in progress)
+  description: This API allows users to initiate and check the status of payments.
+  version: 1.0.0
+servers:
+  - url: https://api.example.com/v1
+paths:
+  /payments/initiation:
+    post:
+      summary: Initiate a payment
+      description: |
+        This endpoint is used to initiate a payment.
+
+        Headers:
+        - `Content-Type`: The media type of the request body (e.g., `application/json`).
+
+        Request Body:
+        - `GrpHdr`: The group header information.
+        - `CdtTrfTxInf`: The list of credit transfer transaction information.
+
+        Example:
+        ```json
+        {
+          "GrpHdr": {
+            "MsgId": "12345",
+            "CreDtTm": "2023-06-14T12:00:00Z",
+            "InitgPty": {
+              "Nm": "John Doe",
+              "PstlAdr": {
+                "AdrLine": "123 Main St"
+              }
+            }
+          },
+          "CdtTrfTxInf": [
+            {
+              "PmtId": {
+                "InstrId": "98765",
+                "EndToEndId": "ABCDE12345"
+              },
+              "PmtTpInf": {
+                "InstrPrty": "High",
+                "Prtry": {
+                  "Cd": "CHQB"
+                }
+              },
+              "Amt": {
+                "InstdAmt": {
+                  "Ccy": "USD",
+                  "value": "100.00"
+                }
+              },
+              "CdtrAgt": {
+                "BIC": "ABCDEFGH"
+              },
+              "Cdtr": {
+                "Nm": "Jane Smith",
+                "PstlAdr": {
+                  "AdrLine": "456 Oak St"
+                }
+              },
+              "CdtrAcct": {
+                "Id": {
+                  "IBAN": "US1234567890"
+                }
+              }
+            }
+          ]
+        }
+        ```
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentInitiationRequest'
+
+      responses:
+        '201':
+          description: Payment Initiated Successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InitiationResponse'
+              example:
+                paymentOrder: "ABCDE12345"
+                statusCode: "100"
+                statusDescription: "Payment processing"
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid request payload"
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Method not allowed"
+        '415':
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unsupported media type"
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Internal server error"
+
+  /payments/{paymentOrder}/status:
+    get:
+      summary: Get payment status
+      description: |
+        This endpoint is used to get the status of a payment.
+
+        Parameters:
+        - `paymentOrder`: The identifier of the payment order.
+
+        Example:
+        `/payments/ABCDE12345/status`
+
+      parameters:
+        - name: paymentOrder
+          in: path
+          description: The identifier of the payment order
+          required: true
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: Payment Status Retrieved Successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatusResponse'
+              example:
+                paymentOrder: "ABCDE12345"
+                statusCode: "200"
+                statusDescription: "Payment successful"
+        '404':
+          description: Payment Order Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Payment order not found"
+
+components:
+  schemas:
+    PaymentInitiationRequest:
+      type: object
+      properties:
+        GrpHdr:
+          $ref: '#/components/schemas/GroupHeader'
+        CdtTrfTxInf:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreditTransferTransactionInformation'
+      required:
+        - GrpHdr
+        - CdtTrfTxInf
+
+    GroupHeader:
+      type: object
+      properties:
+        MsgId:
+          type: string
+          description: The message identifier
+        CreDtTm:
+          type: string
+          format: date-time
+          description: The creation date and time of the payment initiation
+        InitgPty:
+          $ref: '#/components/schemas/PartyIdentification'
+      required:
+        - MsgId
+        - CreDtTm
+        - InitgPty
+
+    PartyIdentification:
+      type: object
+      properties:
+        Nm:
+          type: string
+          description: The name of the party
+        PstlAdr:
+          $ref: '#/components/schemas/PostalAddress'
+
+    PostalAddress:
+      type: object
+      properties:
+        AdrLine:
+          type: string
+          description: The address line
+
+    CreditTransferTransactionInformation:
+      type: object
+      properties:
+        PmtId:
+          $ref: '#/components/schemas/PaymentIdentification'
+        PmtTpInf:
+          $ref: '#/components/schemas/PaymentTypeInformation'
+        Amt:
+          $ref: '#/components/schemas/Amount'
+        CdtrAgt:
+          $ref: '#/components/schemas/Agent'
+        Cdtr:
+          $ref: '#/components/schemas/PartyIdentification'
+        CdtrAcct:
+          $ref: '#/components/schemas/CashAccount'
+
+    PaymentIdentification:
+      type: object
+      properties:
+        InstrId:
+          type: string
+          description: The instruction identifier
+        EndToEndId:
+          type: string
+          description: The end-to-end identifier
+
+    PaymentTypeInformation:
+      type: object
+      properties:
+        InstrPrty:
+          type: string
+          description: The instruction priority
+        Prtry:
+          $ref: '#/components/schemas/ProprietaryCode'
+
+    ProprietaryCode:
+      type: object
+      properties:
+        Cd:
+          type: string
+          description: The proprietary code
+
+    Amount:
+      type: object
+      properties:
+        InstdAmt:
+          $ref: '#/components/schemas/InstructedAmount'
+
+    InstructedAmount:
+      type: object
+      properties:
+        Ccy:
+          type: string
+          description: The currency code
+        value:
+          type: string
+          description: The amount value
+
+    Agent:
+      type: object
+      properties:
+        BIC:
+          type: string
+          description: The BIC code
+
+    CashAccount:
+      type: object
+      properties:
+        Id:
+          $ref: '#/components/schemas/AccountIdentification'
+
+    AccountIdentification:
+      type: object
+      properties:
+        IBAN:
+          type: string
+          description: The IBAN
+
+    InitiationResponse:
+      type: object
+      properties:
+        paymentOrder:
+          type: string
+          description: The identifier of the payment order
+        statusCode:
+          type: string
+          description: The status code of the payment initiation
+        statusDescription:
+          type: string
+          description: The status description of the payment initiation
+
+    PaymentStatusResponse:
+      type: object
+      properties:
+        paymentOrder:
+          type: string
+          description: The identifier of the payment order
+        statusCode:
+          type: string
+          description: The status code of the payment status
+        statusDescription:
+          type: string
+          description: The status description of the payment status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: The error message
